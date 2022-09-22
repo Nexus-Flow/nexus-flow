@@ -1,0 +1,48 @@
+name: Add priority label
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  add_priority_label:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for priority field
+        id: check_priority
+        uses: actions/bin/filter@v1
+        with:
+          inputs:
+            body: ${{ toJson(github.event.issue.body) }}
+          outputs:
+            priority: ${{ fromJson(steps.check_priority.outputs.body).priority }}
+
+      - name: Skip if priority is not found
+        if: steps.check_priority.outputs.priority == ''
+        run: |
+          echo "No priority field found, skipping label addition"
+
+      - name: Add label
+        if: steps.check_priority.outputs.priority != ''
+        uses: actions/github-script@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            const priority = steps.check_priority.outputs.priority;
+            const issue_number = github.event.issue.number;
+            const repository = github.repository;
+            const owner = repository.owner.login;
+            const repo = repository.name;
+
+            const label = priority == 'high' ? 'priority: high' : priority == 'medium' ? 'priority: medium' : 'priority: low';
+
+            const addLabelResponse = await github.issues.addLabels({
+              owner,
+              repo,
+              issue_number,
+              labels: [label]
+            });
+
+            console.log(addLabelResponse);

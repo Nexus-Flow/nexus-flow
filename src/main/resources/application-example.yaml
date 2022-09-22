@@ -1,0 +1,82 @@
+server:
+  port: 7000
+  servlet:
+    context-path: /
+
+project:
+  version: @project.version@
+
+spring:
+  application:
+    name: @application.name@
+
+  data:
+    jpa.repositories.enabled: true
+
+  datasource:
+    url: jdbc:postgresql://localhost:64000/db?currentSchema=@application.name@
+    driverClassName: org.postgresql.Driver
+    username: admin
+    password: admin
+
+  flyway:
+    enabled: false #--this must be set to false; flyway is started via FlywayConfiguration.class in order to go afterwards jpa creation
+    locations: classpath:db/migration
+    schemas: @application.name@
+    baseline-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      database: PostgresSQL
+      default_schema: @application.name@
+    properties:
+      hibernate:
+        format_sql: true
+        hbm2ddl.delimiter: ;
+        id.new_generator_mappings: false
+      jakarta:
+        persistence:
+          schema-generation:
+            create-source: metadata #-- be careful if action is set to creation or update: jpa only creates into the file, no actual tables
+            scripts:
+              action: none #--create or update if we want the scripts into a file
+              create-target: jpa_created_script.sql
+    show-sql: false
+
+message-broker.event-bus: rabbitmq #possible values are rabbitmq or spring
+
+rabbitmq:
+  host: localhost
+  port: 5672
+  virtual-host: local-1
+  username: @application.name@
+  password: no-admin
+  exchange: @application.name@
+  max-attempts: 5
+  consumer-autostart: true
+
+nexus-flow:
+  elasticsearch:
+    host: localhost
+    port: 9200
+    date-time-pattern: "yyyy-MM-dd HH:mm:ss.SSSSSS"
+    date-pattern: "yyyy-MM-dd"
+    user-name: admin
+    password: admin
+    keystore-location: "/keystore.jks"
+    keystore-password: "123456"
+    page-default:
+      number: 0
+      size: 50
+      sort-by: _doc
+      sort-direction: asc
+  services:
+    service-example: http://localhost:7000
+
+logging.level:
+  com.nexus_flow: DEBUG
+  org.hibernate.SQL: WARN
+  org.springframework.boot.web.embedded.tomcat: INFO
+  org.flywaydb.core.internal.command: INFO
+  tracer: TRACE #to show curl request to ElasticSearch

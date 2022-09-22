@@ -1,0 +1,19 @@
+name: Create issue template
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Create issue template
+        uses: actions/create-an-issue-template-action@v1
+        with:
+          issue_template: .github/ISSUE_TEMPLATE/ISSUE_TEMPLATE.md
+          issue_template_enabled: true
