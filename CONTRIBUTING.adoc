@@ -1,0 +1,202 @@
+= Contributing to the Research-Project-Team
+
+The Research-Project-Team is open source and released under the GPLv3 license. If you would like to contribute, please follow the guidelines outlined in this document.
+
+== Introduction
+
+The Research-Project-Team is an open source project released under the GPLv3 license, and we welcome contributions from anyone who would like to help us improve the project. This document outlines the guidelines for contributing to the Research-Project-Team, including information about the Code of Conduct, how to use GitHub Issues and GitHub Discussions, reporting security vulnerabilities, signing the Contributor License Agreement, code conventions and housekeeping, and submitting a Pull Request.
+
+== Code of Conduct
+
+The Research-Project-Team follows the Contributor Covenant code of conduct. All contributors are expected to adhere to this code. If you encounter any unacceptable behavior, please report it to code-of-conduct@research-project-team.io. You can find the full text of the Contributor Code of Conduct here: [link to Contributor Code of Conduct].
+
+== Using GitHub Issues
+
+The Research-Project-Team uses GitHub issues to track and manage bugs, enhancements, and feature requests. By submitting an issue, you are helping us make the project better for everyone.
+
+To report a bug or suggest an improvement, you can use the GitHub Issues page located here: https://github.com/Research-Project-Team/shared-bounded/issues. When creating a new issue, please provide as much information as possible to help us understand and reproduce the problem. This may include steps to reproduce the issue, a description of what you expected to happen, and any relevant error messages or screenshots.
+
+If you're unsure whether something is a bug or if you have any questions about using the project, you can also use the GitHub Issues page to ask for clarification. Our team will be happy to assist you.
+
+Additionally, when reporting a bug, please check if a similar issue has already been submitted. If so, you can add your additional information as a comment to the existing issue, instead of creating a new one.
+
+== Using GitHub Discussions
+
+The Research-Project-Team also uses GitHub Discussions as a platform for community-based discussions and questions. If you have any questions or ideas to share with the community, you can use GitHub Discussions located here: https://github.com/orgs/Research-Project-Team/discussions.
+
+GitHub Discussions is a great way to connect with other users and members of the project, exchange ideas, and get help with any questions you may have. You can start a new discussion by clicking the "New discussion" button, and you can also participate in existing discussions by leaving comments and contributing your own insights.
+
+We encourage you to be respectful and professional in your interactions with others, and to follow the guidelines outlined in our Code of Conduct.
+
+== Reporting Security Vulnerabilities
+
+If you believe you've found a security vulnerability in the Research-Project-Team, please do NOT disclose it publicly until the team has had an opportunity to fix it. Do not report security vulnerabilities using GitHub issues. Instead, go to https://research-project-team.io/security-policy to learn how to report vulnerabilities responsibly. Additionally, you can send an email to security@research-project-team.io with information about the vulnerability.
+
+== Signing the Contributor License Agreement
+
+To make your contributions to the project more likely to be accepted, it is important to follow some basic guidelines for code conventions and maintenance. These are not mandatory for a pull request, but it is recommended that you follow them before your pull request is merged.
+
+Sign the Contributor License Agreement: Before we can accept any significant contributions or pull requests, you must sign the Contributor License Agreement. This agreement will not give you commit rights to the main repository, but it will allow us to accept your contributions and give you credit as an author. If you become an active contributor, you may be asked to join the core team and given the ability to merge pull requests.
+
+== Code Conventions and Housekeeping
+In this section, we outline the basic coding conventions and housekeeping items that all contributors to the project should be aware of.
+
+== Code Formatting and Linting
+
+It is important that all code contributions follow the same formatting standards to make the code more readable and consistent, which helps with maintenance and understanding. Before submitting your Pull Request (PR), make sure to run the code formatting and linting checks.
+
+The tool we use for formatting is [insert code formatting tool]. To format your code, simply run [insert command to run code formatting tool].
+
+For linting, we use [insert code linting tool]. To check your code for linting issues, run [insert command to run code linting tool].
+
+Please make sure to run both the code formatting and linting checks before submitting your changes, as failure to do so may result in your pull request being delayed or rejected.
+
+=== Code Enforcement
+To enforce code conventions, the project uses a code analysis tool. Before submitting your PR, make sure that:
+
+Your code passes the code analysis tool without any errors or warnings.
+You have fixed any issues identified by the code analysis tool.
+
+=== Javadocs
+Javadocs are an important part of the documentation of the project. Before submitting your PR, make sure that:
+
+You have added appropriate Javadoc comments for all new code.
+The header of every .java file includes the proper license information and your @author tag.
+
+=== Verification Tasks
+Before submitting your PR, make sure that you have completed the necessary verification tasks, including:
+
+Compiling the code.
+Running specific tests to validate your changes.
+
+== Submitting a Pull Request
+In this section, we outline the steps to follow when submitting a Pull Request to the Research-Project-Team repository.
+
+=== Before Submitting
+Before submitting your PR, it's important to ensure that:
+
+Your changes have been thoroughly tested and work as expected.
+Any necessary documentation has been updated to reflect the changes you made.
+To make sure your changes are as high-quality as possible, it's recommended to follow these best practices:
+
+Write clear, concise, and well-commented code.
+Add tests for any new features or changes you made to the existing code.
+Make sure the existing tests still pass after you made your changes.
+Verify that the documentation is up to date and accurate.
+=== Pull Request Process
+Once you have taken the time to prepare and test your changes, you can proceed with the following steps to submit a PR:
+
+Create a new branch in the Research-Project-Team repository specifically for your changes.
+Push the changes you made to this new branch.
+Submit a PR from your branch to the main repository, describing the changes you made and why they were necessary.
+Wait for the code review process to be completed by the Research-Project-Team maintainers.
+If any issues are identified during the code review, make the necessary changes and update the PR accordingly.
+Repeat step 5 until the PR is approved and can be merged into the main repository.
+
+== Code Review
+In this section, we outline the code review process and the expectations for code review.
+
+=== Code Review Process
+The code review process is an important part of ensuring the quality and consistency of the code. The steps involved in the code review process are:
+
+The PR is reviewed by one or more members of the development team.
+The reviewer(s) will leave comments and feedback on the code.
+The author of the PR will address any issues identified during the code review process.
+
+== Code Review Expectations
+
+In this section, we outline the basic coding conventions and housekeeping items that all contributors to the project should be aware of.
+
+=== Code Documentation and Readability
+
+The code should be well-documented and easy to understand. This includes clear and concise comments, meaningful method and variable names, and following established coding conventions. Proper use of comments and documentation should be made throughout the code, including the header of each .java file, which should contain a license header and information about the author. The code should be easy to read and follow, with meaningful names for variables, methods, and classes, and appropriate use of whitespace and indentation. Code formatting should be consistent with the project's established style guide, and any violations of the style guide should be fixed before submitting the Pull Request.
+
+=== Testing
+
+The code has been thoroughly tested, including writing comprehensive unit tests and integration tests, to ensure that it works as expected in all scenarios. Before submitting the Pull Request, it is crucial to run all relevant tests and verify that all test cases pass. If the Pull Request modifies or adds new functionality, it must include appropriate tests to verify its functionality and provide evidence of its robustness.
+
+By thoroughly testing the code, it helps to identify and eliminate potential bugs and issues, ensuring that the code is reliable and secure. The goal is to have a high level of confidence in the code before it is integrated into the project. Failure to complete this step may result in additional work being required, or the code being rejected outright.
+
+=== Performance and Scalability
+
+The code has been designed and implemented to ensure optimal performance and scalability. To achieve this, the following guidelines should be followed:
+
+Avoid slow or inefficient algorithms that could negatively impact performance.
+Limit the use of blocking operations that could slow down the system.
+Follow best practices for memory management to ensure that resources are used efficiently and avoid memory leaks.
+Optimize code for fast execution, including using appropriate data structures and algorithms for the task at hand.
+Consider the scalability of the code and its ability to handle increasing loads and demands on the system.
+By following these guidelines, we can ensure that the code performs well under normal and heavy loads and can be easily adapted to meet future needs and demands.
+
+=== Security
+
+Ensuring the security of the code is of utmost importance. To achieve this, it is necessary to follow established security best practices and take steps to prevent security vulnerabilities. This includes proper input validation, sanitization, and handling of sensitive information, as well as following secure coding standards. Additionally, any third-party libraries or components used in the code should be regularly updated and kept up-to-date to address known security issues.
+
+In order to maintain the security of the codebase, periodic security audits and penetration testing should be performed to identify and address any potential vulnerabilities. Furthermore, all security incidents and reported bugs should be taken seriously, investigated promptly and addressed in a timely manner.
+
+By adhering to these security guidelines, the codebase can be kept secure and protect against potential threats.
+
+=== Architecture and Design
+
+The code follows the established architecture and design patterns for the project. The architecture should be scalable, flexible, and well-documented. In addition, the code should be written in a way that is easy to maintain and update. The design should be consistent with the coding conventions and established best practices, and appropriate libraries and frameworks should be used to support the design. When implementing design patterns, they should be used in a way that supports the overall architecture and design goals of the project.
+
+=== Maintainability
+
+Maintaining and updating the code is crucial for the long-term success of the project. To ensure that the code is maintainable, it's important to adhere to established coding conventions, write clean and well-structured code, and provide clear and concise documentation. This includes:
+
+Adhering to the coding standards and guidelines outlined in this document
+Writing clear and concise code that is easy to read and understand
+Providing detailed and up-to-date comments and documentation within the code
+Regularly reviewing and updating the code to maintain its quality and address any potential issues
+By following these best practices, the code will be easier to maintain and improve over time, ensuring the project's continued success.
+
+=== Verification Tasks
+
+Before submitting a Pull Request, it is crucial to complete the following verification tasks to ensure that the code meets the standards outlined in this document:
+
+Run all relevant tests and make sure all test cases pass. This will ensure that the code changes do not break existing functionality.
+
+If the Pull Request modifies or adds new functionality, it should include appropriate tests to verify its functionality. Use specific test cases that cover the edge cases and the normal flow of the new functionality.
+
+Complete necessary code reviews. Invite other contributors or experts in the field to review the code changes and provide feedback. This will help identify any potential issues or improvements that need to be addressed.
+
+Validate the code changes using automated tools such as linters, code formatters, and static analysis tools. This will help ensure that the code adheres to the project's coding standards and best practices.
+
+Run manual tests to verify the functionality of the code changes. This can include testing the code on different platforms, browsers, and devices.
+
+Check for any potential security vulnerabilities that may have been introduced by the code changes. This can be done by using security analysis tools and reviewing the code for any potential security weaknesses.
+
+Consider the impact of the code changes on performance, scalability, and maintainability. Make any necessary adjustments to the code to ensure that it performs well and is easy to maintain in the future.
+
+By completing these verification tasks, you can ensure that the code meets the quality standards and is ready for integration into the project. This will help prevent additional work or rejection of the code changes in the future.
+
+== Contributing
+
+The Research-Project-Team welcomes contributions from the community. If you are interested in contributing, please follow these guidelines to ensure that your contribution is as smooth and efficient as possible.
+
+Check for open issues or open a new issue to start a discussion around a feature idea or a bug.
+Fork the repository on GitHub.
+Create a new branch for your changes.
+Make the necessary changes and commit them to your branch.
+Push your branch to your fork on GitHub.
+Submit a pull request to the main repository.
+Wait for the code review process to be completed.
+Address any issues identified during the code review process.
+
+== Joining the Research-Project-Team
+
+The Research-Project-Team welcomes contributions from anyone who is interested in the project. However, to ensure the success and quality of the project, all contributors must abide by the following terms and conditions:
+
+Respect for others: All contributors are expected to be respectful and professional in their interactions with others, including team members, stakeholders, and users of the project.
+
+Quality of contributions: Contributions must be of high quality and meet the project's standards for coding, documentation, and testing.
+
+License agreement: All contributions must be made under the project's open source license, which can be found in the LICENSE file.
+
+Code of conduct: All contributors must follow the project's code of conduct, which can be found in the CODE_OF_CONDUCT file.
+
+By submitting a pull request, contributors acknowledge that they have read, understood, and agree to the terms and conditions outlined above. The Research-Project-Team reserves the right to reject contributions that do not meet these standards.
+
+== License
+
+The Research-Project-Team is released under the [insert license here]. Please see the LICENSE file for more information.

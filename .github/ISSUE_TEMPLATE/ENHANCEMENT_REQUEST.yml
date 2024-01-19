@@ -1,0 +1,57 @@
+name: Enhancement Request
+description: Submit an enhancement request to suggest a new feature or improvement to existing functionality. Help shape the future of the software by sharing your ideas and use cases.
+title: "[Enhancement]: "
+labels: [ "enhancement" ]
+assignees: [ ]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to fill out this enhancement request!
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: A clear and concise title that summarizes the request.
+      placeholder: Enter the title here...
+    validations:
+      required: true
+      min_length: 10
+      max_length: 50
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: Select the type of enhancement request you're submitting.
+      options:
+        - New Feature
+        - Improvement to Existing Feature
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the requested feature or improvement.
+      placeholder: Enter the description here...
+    validations:
+      required: true
+      min_length: 50
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Provide any additional context or information that may help explain the need for the requested feature or improvement. This can include examples, use cases, screenshots, or references to existing functionality.
+      placeholder: Enter the additional context here...
+    validations:
+      required: false
+      max_length: 500
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/Research-Project-Team/shared-bounded/blob/master/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
+        - label: I confirm that I am authorized to contribute to this project
+          required: true

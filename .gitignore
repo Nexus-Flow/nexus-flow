@@ -1,0 +1,55 @@
+# Gradle specific #
+.gradle/
+build/
+!gradle-wrapper.jar
+gradle-app.setting
+.gradletasknamecache
+
+# Java specific #
+*.class
+
+# Package Files #
+*.jar
+*.war
+*.ear
+
+# IntelliJ IDEA specific #
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse specific #
+.classpath
+.project
+.settings
+.factorypath
+.springBeans
+.sts4-cache
+
+# General #
+
+# Add general ignore patterns here (e.g., log files, temporary files)
+
+# MacOS specific #
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails #
+._*
+
+# Files that might appear in root of a volume #
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# Directories potentially created on remote AFP share #
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

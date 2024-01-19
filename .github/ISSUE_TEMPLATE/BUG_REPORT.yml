@@ -1,0 +1,98 @@
+name: Bug Report
+description: Submit a report to help us fix a problem in the software that is causing it to behave in unintended ways.
+title: "[Bug]: "
+labels: [ "bug" ]
+assignees: [ ]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to fill out this bug report!
+  - type: input
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the issue you are encountering.
+      placeholder: Describe the issue here...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions on how to reproduce the issue.
+      placeholder: List the steps here...
+      value: |-
+        1. Step 1
+        2. Step 2
+        3. Step 3
+      render: Markdown
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: What did you expect to happen?
+      value: I expected the software to function correctly and without any errors.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Select the priority of this issue.
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Research-Project-Team Version
+      description: The version of the Research-Project-Team library you are using.
+      options:
+        - 0.0.1-SNAPSHOT
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Information about the environment in which the issue is occurring, such as operating system, version of Java, etc.
+      options:
+        - Windows
+        - Mac
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any additional information that might be helpful in resolving the issue. This can include log output, screenshots, or any other relevant information.
+      placeholder: Add any additional context here...
+      value: |-
+        ## Additional Information
+        - Anything else that might be relevant to resolving the issue.
+        
+        ## Logs
+        - If relevant, provide any log output that might be helpful in resolving the issue.
+        
+        ## Screenshots
+        - If applicable, add screenshots to help explain your problem.
+      render: Markdown
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/Research-Project-Team/shared-bounded/blob/master/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
+        - label: I confirm that I am authorized to contribute to this project
+          required: true
