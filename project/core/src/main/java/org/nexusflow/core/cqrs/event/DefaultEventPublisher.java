@@ -6,7 +6,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
 
-public class DefaultEventPublisher<E extends DomainEvent> implements EventPublisher<E> {
+class DefaultEventPublisher<E extends DomainEvent> implements EventPublisher<E> {
     private static final Logger logger = Logger.getLogger(DefaultEventPublisher.class.getName());
     private final ExecutorService executor;
     private final ConcurrentHashMap<String, PriorityQueue<EventTaskGroup<E>>> eventTasks;

@@ -2,7 +2,7 @@ package org.nexusflow.core.cqrs.command;
 
 import org.nexusflow.core.cqrs.reflection.TypeReference;
 
-public interface CommandConsumerRegistry {
+interface CommandConsumerRegistry {
 
     static CommandConsumerRegistry getInstance() {
         return CommandConsumerRegistryFactory.getInstance();

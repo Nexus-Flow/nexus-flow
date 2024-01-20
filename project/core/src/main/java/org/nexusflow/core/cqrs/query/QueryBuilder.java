@@ -5,7 +5,7 @@ import org.nexusflow.core.cqrs.reflection.TypeReference;
 import java.time.Instant;
 import java.util.UUID;
 
-public class QueryBuilder<T extends Record> {
+class QueryBuilder<T extends Record> {
 
     private UUID queryId;
     private Instant timestamp;

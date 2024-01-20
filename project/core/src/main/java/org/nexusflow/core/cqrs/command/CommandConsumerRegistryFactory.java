@@ -1,6 +1,6 @@
 package org.nexusflow.core.cqrs.command;
 
-public class CommandConsumerRegistryFactory {
+class CommandConsumerRegistryFactory {
     private static volatile CommandConsumerRegistry instance;
 
     private CommandConsumerRegistryFactory() {

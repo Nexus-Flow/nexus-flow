@@ -9,7 +9,7 @@ import java.util.logging.Logger;
  *
  * @param <T> the type of command to be handled.
  */
-public sealed interface CommandHandler<T extends Record, R, H extends CommandHandler<T, R, H>> permits NoReturnCommandHandler, ReturnCommandHandler {
+sealed interface CommandHandler<T extends Record, R, H extends CommandHandler<T, R, H>> permits NoReturnCommandHandler, ReturnCommandHandler {
 
 //    static <T extends Record, R> CommandHandlerBuilder.ResponseHandleFunctionStep<T, R> builder() {
 //        return CommandHandlerBuilder.builder();

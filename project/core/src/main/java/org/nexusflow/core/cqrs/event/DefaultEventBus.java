@@ -3,7 +3,7 @@ package org.nexusflow.core.cqrs.event;
 import org.nexusflow.core.cqrs.reflection.TypeReference;
 import org.nexusflow.core.ddd.DomainEvent;
 
-public non-sealed class DefaultEventBus implements EventBus {
+non-sealed class DefaultEventBus implements EventBus {
 
     private final EventPublisherRegistry publisherRegistry = EventPublisherRegistry.getInstance();
 

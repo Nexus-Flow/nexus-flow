@@ -1,6 +1,6 @@
 package org.nexusflow.core.cqrs.event;
 
-public class EventPublisherRegistryFactory {
+class EventPublisherRegistryFactory {
     private static volatile EventPublisherRegistry instance;
 
     private EventPublisherRegistryFactory() {

@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ReturnHandlerExecutor<T extends Record, R> implements CommandHandlerExecutor<T, R, ReturnCommandHandler<T, R>>, AutoCloseable {
+class ReturnHandlerExecutor<T extends Record, R> implements CommandHandlerExecutor<T, R, ReturnCommandHandler<T, R>>, AutoCloseable {
 
     private static final Logger logger = Logger.getLogger(ReturnHandlerExecutor.class.getName());
     private final ReturnCommandHandlerInternal<T, R> handler;

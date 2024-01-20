@@ -5,7 +5,7 @@ import org.nexusflow.core.cqrs.reflection.TypeReference;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DefaultCommandConsumerRegistry implements CommandConsumerRegistry {
+class DefaultCommandConsumerRegistry implements CommandConsumerRegistry {
     private final Map<TypeReference<?>, NoReturnHandlerExecutor<?>> publisherMap = new ConcurrentHashMap<>();
     private final Map<TypeReference<?>, ReturnHandlerExecutor<?, ?>> returnPublisherMap = new ConcurrentHashMap<>();
 

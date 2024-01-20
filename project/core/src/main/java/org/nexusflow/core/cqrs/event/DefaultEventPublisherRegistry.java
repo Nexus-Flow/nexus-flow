@@ -6,7 +6,7 @@ import org.nexusflow.core.ddd.DomainEvent;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DefaultEventPublisherRegistry implements EventPublisherRegistry {
+class DefaultEventPublisherRegistry implements EventPublisherRegistry {
     private final Map<TypeReference<?>, EventPublisher<?>> publisherMap = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")

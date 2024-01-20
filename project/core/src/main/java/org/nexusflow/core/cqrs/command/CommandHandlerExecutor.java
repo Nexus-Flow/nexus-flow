@@ -2,7 +2,7 @@ package org.nexusflow.core.cqrs.command;
 
 import java.util.List;
 
-public interface CommandHandlerExecutor<T extends Record, R, H extends CommandHandler<T, R, H>> {
+interface CommandHandlerExecutor<T extends Record, R, H extends CommandHandler<T, R, H>> {
 
     void execute(Command<T> command);
 

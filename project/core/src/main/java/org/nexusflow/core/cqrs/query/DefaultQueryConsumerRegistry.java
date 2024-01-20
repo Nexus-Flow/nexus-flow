@@ -5,7 +5,7 @@ import org.nexusflow.core.cqrs.reflection.TypeReference;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DefaultQueryConsumerRegistry implements QueryConsumerRegistry {
+class DefaultQueryConsumerRegistry implements QueryConsumerRegistry {
     private final Map<TypeReference<?>, QueryHandler<?, ?>> publisherMap = new ConcurrentHashMap<>();
 
     @Override

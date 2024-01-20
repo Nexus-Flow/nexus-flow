@@ -5,7 +5,7 @@ import org.nexusflow.core.cqrs.reflection.TypeReference;
 import java.time.Instant;
 import java.util.UUID;
 
-public class CommandBuilder<T extends Record> {
+class CommandBuilder<T extends Record> {
 
     private UUID commandId;
     private Instant timestamp;

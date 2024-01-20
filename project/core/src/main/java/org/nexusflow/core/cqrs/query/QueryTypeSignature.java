@@ -5,7 +5,7 @@ import org.nexusflow.core.cqrs.reflection.TypeReference;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-public abstract class QueryTypeSignature<T, R> {
+abstract class QueryTypeSignature<T, R> {
     private final TypeReference<T> typeReference;
     private final TypeReference<R> returnType;
 

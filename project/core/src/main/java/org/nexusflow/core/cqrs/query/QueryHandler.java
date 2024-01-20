@@ -3,7 +3,7 @@ package org.nexusflow.core.cqrs.query;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public sealed interface QueryHandler<T extends Record, R> permits AbstractQueryHandler {
+sealed interface QueryHandler<T extends Record, R> permits AbstractQueryHandler {
 
     R handle(T query);
 

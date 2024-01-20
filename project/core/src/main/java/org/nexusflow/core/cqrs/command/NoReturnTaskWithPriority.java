@@ -1,6 +1,6 @@
 package org.nexusflow.core.cqrs.command;
 
-public record NoReturnTaskWithPriority<T extends Record>(Command<T> command, Runnable task) implements TaskWithPriority<T, Void> {
+record NoReturnTaskWithPriority<T extends Record>(Command<T> command, Runnable task) implements TaskWithPriority<T, Void> {
 
     @Override
     public int getPriority() {

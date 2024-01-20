@@ -1,6 +1,6 @@
 package org.nexusflow.core.cqrs.query;
 
-public class QueryConsumerRegistryFactory {
+class QueryConsumerRegistryFactory {
     private static volatile QueryConsumerRegistry instance;
 
     private QueryConsumerRegistryFactory() {

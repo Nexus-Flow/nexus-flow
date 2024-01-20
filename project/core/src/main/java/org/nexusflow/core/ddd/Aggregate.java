@@ -13,17 +13,17 @@ public abstract non-sealed class Aggregate implements AggregateRoot {
     }
 
     @Override
-    public void recordEvent(List<DomainEvent> domainEvents) {
+    public final void recordEvent(List<DomainEvent> domainEvents) {
         domainEvents.forEach(eventContext::recordEvent);
     }
 
     @Override
-    public void recordEvent(DomainEvent domainEvent) {
+    public final void recordEvent(DomainEvent domainEvent) {
         eventContext.recordEvent(domainEvent);
     }
 
     @Override
-    public List<DomainEvent> getEvents() {
+    public final List<DomainEvent> getEvents() {
         return eventContext.getEvents();
     }
 

@@ -2,7 +2,7 @@ package org.nexusflow.core.cqrs.query;
 
 import org.nexusflow.core.cqrs.reflection.TypeReference;
 
-public interface QueryConsumerRegistry {
+interface QueryConsumerRegistry {
 
     static QueryConsumerRegistry getInstance() {
         return QueryConsumerRegistryFactory.getInstance();

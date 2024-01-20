@@ -10,7 +10,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
-public class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecutor<T, Void, NoReturnCommandHandler<T>>, AutoCloseable {
+class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecutor<T, Void, NoReturnCommandHandler<T>>, AutoCloseable {
     private static final Logger logger = Logger.getLogger(NoReturnHandlerExecutor.class.getName());
     private final NoReturnCommandHandlerInternal<T> handler;
     private final ExecutorService executor;

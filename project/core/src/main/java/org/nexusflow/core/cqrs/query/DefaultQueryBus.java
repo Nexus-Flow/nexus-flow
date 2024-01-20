@@ -4,7 +4,6 @@ import org.nexusflow.core.cqrs.query.exceptions.QueryHandlerExecutionError;
 import org.nexusflow.core.cqrs.query.exceptions.QueryNotRegisteredError;
 
 import java.util.concurrent.Callable;
-
 non-sealed class DefaultQueryBus implements QueryBus {
 
     private final QueryConsumerRegistry consumerRegistry = QueryConsumerRegistry.getInstance();

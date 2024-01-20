@@ -5,8 +5,7 @@ import org.nexusflow.core.cqrs.reflection.TypeReference;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-
-public abstract class EventTypeSignature<T> {
+abstract class EventTypeSignature<T> {
     private final TypeReference<T> eventType;
 
     protected EventTypeSignature() {

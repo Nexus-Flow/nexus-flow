@@ -3,7 +3,7 @@ package org.nexusflow.core.cqrs.event;
 import org.nexusflow.core.cqrs.reflection.TypeReference;
 import org.nexusflow.core.ddd.DomainEvent;
 
-public interface EventPublisherRegistry {
+interface EventPublisherRegistry {
 
     static EventPublisherRegistry getInstance() {
         return EventPublisherRegistryFactory.getInstance();

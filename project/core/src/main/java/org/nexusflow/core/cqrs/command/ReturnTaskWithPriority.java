@@ -3,7 +3,7 @@ package org.nexusflow.core.cqrs.command;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
-public record ReturnTaskWithPriority<T extends Record, R>(Command<T> command, Callable<R> task, CompletableFuture<R> future) implements TaskWithPriority<T, R> {
+record ReturnTaskWithPriority<T extends Record, R>(Command<T> command, Callable<R> task, CompletableFuture<R> future) implements TaskWithPriority<T, R> {
 
     @Override
     public int getPriority() {

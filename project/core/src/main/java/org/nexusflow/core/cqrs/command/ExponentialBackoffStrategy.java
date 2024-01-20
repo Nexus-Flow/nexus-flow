@@ -2,7 +2,7 @@ package org.nexusflow.core.cqrs.command;
 
 import java.util.concurrent.TimeUnit;
 
-public class ExponentialBackoffStrategy implements BackoffStrategy {
+class ExponentialBackoffStrategy implements BackoffStrategy {
     private final long maxWaitMillis;
     private long waitMillis;
     private boolean inBackoffState;
