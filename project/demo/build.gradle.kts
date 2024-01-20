@@ -41,7 +41,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.register<JavaExec>("runDemo") {
     group = "application"
-    mainClass.set("org.nexusflow.NexusFlowDemo")
+    mainClass.set("net.nexus_flow.NexusFlowDemo")
     classpath = sourceSets["main"].runtimeClasspath
     args = listOf("-DeventContextStrategy=scoped")
 }

@@ -15,7 +15,7 @@ repositories {
     }
 }
 
-group = "org.nexusflow"
+group = "net.nexus_flow"
 version = "0.0.1-SNAPSHOT"
 description = "Nexus Flow"
 

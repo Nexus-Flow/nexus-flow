@@ -1,7 +1,7 @@
 //import org.junit.jupiter.api.Assertions;
 //import org.junit.jupiter.api.Test;
 //import org.junit.jupiter.api.TestInstance;
-//import org.nexusflow.core.cqrs.command.*;
+//import net.nexus_flow.core.cqrs.command.*;
 //
 //import java.util.ArrayList;
 //import java.util.Collections;
