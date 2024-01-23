@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "02:00"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "gradle"
+    directory: "/project/core"
+    schedule:
+      interval: "daily"
+      time: "02:00"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "gradle"
+    directory: "/project/demo"
+    schedule:
+      interval: "daily"
+      time: "02:00"
+    labels:
+      - "dependencies"
