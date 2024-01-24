@@ -29,9 +29,14 @@ val testsJar by tasks.registering(Jar::class) {
 }
 
 publishing {
-    publications.create<MavenPublication>("maven") {
-        from(components["java"])
-        artifact(testsJar)
+    publications {
+        publications.create<MavenPublication>("maven") {
+            from(components["java"])
+            groupId = "net.nexus-flow"
+            artifactId = "nexusflow-core"
+            version = "0.0.1-SNAPSHOT"
+            artifact(testsJar)
+        }
     }
 }
 
