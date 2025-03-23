@@ -21,7 +21,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 }
 
-java.sourceCompatibility = JavaVersion.VERSION_21
+java.sourceCompatibility = JavaVersion.VERSION_23
 
 val testsJar by tasks.registering(Jar::class) {
     archiveClassifier.set("tests")

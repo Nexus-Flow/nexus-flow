@@ -15,16 +15,19 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
     private final NoReturnCommandHandlerInternal<T> handler;
     private final ExecutorService executor;
     private final PriorityBlockingQueue<NoReturnTaskWithPriority<T>> taskQueue;
+    private final static InheritableThreadLocal<ThreadContext> threadContextLocal = new InheritableThreadLocal<>();
     private final Semaphore semaphore;
     private final InitializationType initializationType;
     private final DomainEventContext eventContext;
     private final AtomicBoolean sagaEnabled;
+    private final Thread mainThread;
     private BackoffStrategy backoffStrategy = new ExponentialBackoffStrategy(1000);
     private volatile int concurrencyLevel;
     private volatile boolean running;
 
     public NoReturnHandlerExecutor(NoReturnCommandHandler<T> handler) {
         this.handler = resolveCommandHandler(handler);
+        this.mainThread = Thread.currentThread();
         this.concurrencyLevel = Math.max(handler.getConcurrencyLevel(), 0);
         this.sagaEnabled = new AtomicBoolean(handler.isSagaEnabled());
         this.eventContext = DomainEventContextHolder.getContext();
@@ -37,9 +40,54 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
         initializeExecution();
     }
 
+    // Método que crea una nueva tarea
+    private Runnable executeNewTask(Runnable task, ThreadContext parentContext) {
+        return () -> {
+            initializeThreadContext();
+            ThreadContext newContext = threadContextLocal.get();
+
+            // Establecer ThreadId justo antes de ejecutar la tarea
+            newContext.setThreadId(Thread.currentThread().threadId());
+
+            newContext.setTaskType(TaskType.COMMAND);
+
+            if (parentContext != null) {
+                newContext.setParent(parentContext);
+                synchronized(parentContext) {
+                    parentContext.addChild(newContext);
+                }
+            }
+
+            threadContextLocal.set(newContext);
+
+            // Agregar log para confirmar que el ThreadId se establece correctamente
+            logger.info("ThreadId just before task execution: " + newContext.getThreadId());
+
+            try {
+                task.run();
+            } catch(Exception ex) {
+                ThreadContext currentContext = threadContextLocal.get();
+                if (currentContext != null) {
+                    logger.info("error es este: " + ex.getMessage());
+                    currentContext.notifyUncaughtException((RuntimeException) ex);
+                }
+                logger.severe("An error occurred during task execution: " + ex.getMessage());
+            } finally {
+                threadContextLocal.set(parentContext);
+                logThreadContextInfo(); // Aquí estamos llamando a logThreadContextInfo
+            }
+        };
+    }
     @Override
     public void execute(Command<T> command) {
+        ThreadContext parentContext = threadContextLocal.get();
+
+        // Loggear el valor de parentContext antes de ejecutar la tarea
+        logger.info("ParentContext at the beginning of execute: " + parentContext);
+
         Runnable task = () -> handler.handle(command.getBody()).run();
+
+        task = executeNewTask(task, parentContext);
         if (concurrencyLevel == 0) {
             executeWithoutConcurrencyControl(task);
         } else {
@@ -74,6 +122,20 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    private void initializeThreadContext() {
+        if(Thread.currentThread() != mainThread) { // checks if current thread is not the main thread
+            threadContextLocal.set(new ThreadContext()); // creates a new context
+        }
+
+        ThreadContext threadContext = threadContextLocal.get();
+
+        if(threadContext.getThreadId() == null) { // only set ThreadId if it has not been set yet
+            threadContext.setThreadId(Thread.currentThread().threadId());
+        }
+
+        // the rest of your code in this method...
     }
 
     private void initializeExecution() {
@@ -113,11 +175,7 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
     private void executeWithoutConcurrencyControl(Runnable task) {
         if (sagaEnabled.get()) {
             if (eventContext instanceof ScopedDomainEventContext scopedDomainEventContext) {
-                CompletableFuture.runAsync(() ->
-                                ScopedValue.runWhere(scopedDomainEventContext.getScopedValue(),
-                                        new ArrayList<>(),
-                                        () -> processTask(task, scopedDomainEventContext)), executor)
-                        .join();
+                CompletableFuture.runAsync(() -> ScopedValue.runWhere(scopedDomainEventContext.getScopedValue(), new ArrayList<>(), () -> processTask(task, scopedDomainEventContext)), executor).join();
             } else if (eventContext instanceof ThreadLocalDomainEventContext threadLocalDomainEventContext) {
                 CompletableFuture.runAsync(() -> processTask(task, threadLocalDomainEventContext), executor).join();
             } else {
@@ -125,10 +183,7 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
             }
         } else {
             if (eventContext instanceof ScopedDomainEventContext scopedDomainEventContext) {
-                executor.submit(() -> ScopedValue.runWhere(scopedDomainEventContext.getScopedValue(),
-                        new ArrayList<>(),
-                        () -> processTask(task, scopedDomainEventContext))
-                );
+                executor.submit(() -> ScopedValue.runWhere(scopedDomainEventContext.getScopedValue(), new ArrayList<>(), () -> processTask(task, scopedDomainEventContext)));
             } else if (eventContext instanceof ThreadLocalDomainEventContext threadLocalDomainEventContext) {
                 executor.submit(() -> processTask(task, threadLocalDomainEventContext));
             } else {
@@ -136,6 +191,14 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
             }
         }
     }
+
+//    private void updateParentThread() {
+//        ThreadContext threadContext = threadContextLocal.get();
+//        if (threadContext != null) {
+//            threadContext.setParentId(Thread.currentThread().threadId());
+//        }
+//        logThreadContextInfo();
+//    }
 
     private void processTask(Runnable task, DomainEventContext currentThreadContext) {
         task.run();
@@ -215,7 +278,7 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
         while (running) {
             try {
                 semaphore.acquire();
-                NoReturnTaskWithPriority<T> taskWithPriority = taskQueue.take(); // Toma la siguiente tarea de la cola
+                NoReturnTaskWithPriority<T> taskWithPriority = taskQueue.take();
                 executeTask(taskWithPriority);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -231,11 +294,22 @@ class NoReturnHandlerExecutor<T extends Record> implements CommandHandlerExecuto
             this.concurrencyLevel = newConcurrencyLevel;
             semaphore.drainPermits();
             semaphore.release(newConcurrencyLevel);
-            logger.info(STR."Concurrencia ajustada a: \{newConcurrencyLevel}");
+            logger.info(String.format("Concurrencia ajustada a: %d", newConcurrencyLevel));
         }
     }
 
     public boolean isRunning() {
         return running;
+    }
+
+    private void logThreadContextInfo() {
+        ThreadContext threadContext = threadContextLocal.get();
+        if (threadContext != null) {
+            Long parentId = threadContext.getParent() != null ? threadContext.getParent().getThreadId() : null;
+            List<Long> childIds = threadContext.getChildIds();
+            logger.info("ThreadContext Info - ThreadId: " + threadContext.getThreadId() + ", ParentId: " + parentId + ", SiblingIds: " + childIds);
+            logger.info("current sons: " + threadContext.getChildContexts());
+            logger.info("parent sons: " + ((threadContext.getParent() != null && threadContext.getParent().getChildContexts() != null) ? threadContext.getParent().getChildContexts().toString() : "No parent"));
+        }
     }
 }

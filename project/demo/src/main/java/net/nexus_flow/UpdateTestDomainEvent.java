@@ -39,6 +39,6 @@ public class UpdateTestDomainEvent extends AbstractDomainEvent {
 
     @Override
     public String toString() {
-        return STR."UpdateTestDomainEvent{description='\{description}\{'\''}, version=\{version}\{'}'}";
+        return String.format("UpdateTestDomainEvent{description='%s', version=%s}", description, version);
     }
 }

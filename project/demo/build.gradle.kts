@@ -17,7 +17,7 @@ dependencies {
     implementation(project(":project:core"))
 }
 
-java.sourceCompatibility = JavaVersion.VERSION_21
+java.sourceCompatibility = JavaVersion.VERSION_23
 
 tasks.withType<JavaCompile> {
     val compilerArgs = options.compilerArgs

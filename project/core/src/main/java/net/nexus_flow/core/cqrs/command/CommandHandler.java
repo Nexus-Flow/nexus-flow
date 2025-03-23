@@ -75,6 +75,19 @@ sealed interface CommandHandler<T extends Record, R, H extends CommandHandler<T,
     }
 
     /**
+     * Determines if this handler can be invoked from other commands.
+     *
+     * @return true if this handler can be invoked from other commands.
+     */
+    default boolean canBeInvokedFromOtherCommands() {
+        return true;
+    }
+
+    default CommandSettings getCommandSettings() {
+        return new CommandSettings();
+    }
+
+    /**
      * Handles compensation logic in case of a failure.
      *
      * @param command the command that requires compensation.

@@ -31,8 +31,8 @@ class CommandExecutorServiceFactory {
 
         @Override
         public Thread newThread(Runnable r) {
-            Thread thread = Thread.ofVirtual().unstarted(r);
-            thread.setName(STR."\{namePrefix}-\{threadNumber.getAndIncrement()}");
+            Thread thread = Thread.ofVirtual().inheritInheritableThreadLocals(true).unstarted(r);
+            thread.setName(String.format("%s-%d", namePrefix, threadNumber.getAndIncrement()));
             return thread;
         }
     }

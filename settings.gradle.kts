@@ -11,5 +11,5 @@
 
 rootProject.name = "nexusflow"
 
-include("project:core")
-include("project:demo")
+include(":project:core")
+include(":project:demo")

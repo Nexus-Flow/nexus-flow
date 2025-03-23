@@ -52,6 +52,6 @@ public class TestAggregate extends Aggregate {
 
     @Override
     public String toString() {
-        return STR."TestAggregate{id='\{id}\{'\''}, description='\{description}\{'\''}, version=\{version}\{'}'}";
+        return String.format("TestAggregate{id='%s', description='%s', version=%s}", id, description, version);
     }
 }

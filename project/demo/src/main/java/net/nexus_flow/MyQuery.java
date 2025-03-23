@@ -14,7 +14,7 @@ public record MyQuery(String id) {
 
     @Override
     public String toString() {
-        return STR."MyCommand[id=\{id}\{']'}";
+        return String.format("MyQuery[id=%s]", id);
     }
 
 }

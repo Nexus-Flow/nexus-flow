@@ -37,6 +37,6 @@ public class NexusFlowDemo {
         queryBus.register(new TestQueryHandler());
 
         String returned = queryBus.ask(query);
-        logger.info(STR."QueryBus return: \{returned}");
+        logger.info(String.format("QueryBus return: %s", returned));
     }
 }
