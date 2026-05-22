@@ -1,0 +1,41 @@
+# Centralised version catalog (Gradle dependency management).
+# https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
+#
+# Library coordinates and plugin versions live here so they are bumped in a
+# single place and consumed from every module via `libs.<alias>`.
+
+[versions]
+# Languages and toolchains
+java = "25"
+
+# Test platforms
+junit-jupiter = "6.1.0"
+junit-platform = "6.1.0"
+
+# Static analysis and formatting
+pmd = "7.24.0"
+spotbugs-plugin = "6.5.5"
+spotbugs-tool = "4.9.8"
+spotless-plugin = "8.6.0"
+eclipse-jdt = "4.39"
+
+# Annotations
+jspecify = "1.0.0"
+
+# Async testing
+awaitility = "4.3.0"
+
+# Benchmarks
+jmh = "1.37"
+
+[libraries]
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+
+[plugins]
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless-plugin" }

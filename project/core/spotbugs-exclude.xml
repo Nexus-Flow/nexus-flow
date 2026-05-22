@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Test code: intentional edge-case patterns are fine -->
+    <Match>
+        <Class name="~.*Test.*" />
+    </Match>
+    <!-- Preview-API classes (SyncDispatcher uses StructuredTaskScope) -->
+    <Match>
+        <Class name="net.nexus_flow.core.runtime.SyncDispatcher" />
+        <Bug category="EXPERIMENTAL" />
+    </Match>
+</FindBugsFilter>
