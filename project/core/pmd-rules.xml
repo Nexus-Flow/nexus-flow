@@ -1,0 +1,80 @@
+<?xml version="1.0"?>
+<ruleset name="NexusFlow" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>NexusFlow PMD rules</description>
+
+    <!-- Best Practices — exclude LooseCoupling (API design decision), AbstractClassWithoutAbstractMethod
+         (marker abstract classes are valid), NonExhaustiveSwitch (sealed switch exhaustiveness
+         handled by compiler), AvoidReassigningLoopVariables.
+         Test-style exclusions: UnitTestAssertionsShouldIncludeMessage (assertion messages add noise
+         without value when the assertion itself is self-describing), UnitTestContainsTooManyAsserts
+         (state-machine tests legitimately verify several invariants per scenario).
+         Note: EmptyCatchBlock moved to errorprone in PMD 7.x; re-included below from that category. -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="LooseCoupling"/>
+        <exclude name="AbstractClassWithoutAbstractMethod"/>
+        <exclude name="NonExhaustiveSwitch"/>
+        <exclude name="AvoidReassigningLoopVariables"/>
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+    </rule>
+
+    <!-- Error Prone — exclude AvoidCatchingThrowable (framework must catch user-code Throwable),
+         NullAssignment (intentional null sentinels), AvoidInstanceofChecksInCatchClause,
+         AvoidFieldNameMatchingMethodName (fluent DDD accessor style: field priority() → priority),
+         AvoidDuplicateLiterals (framework constants appear in multiple places intentionally),
+         AvoidLiteralsInIfCondition (magic numbers in timeout/retry logic are self-documenting),
+         AvoidCatchingGenericException (framework dispatch paths MUST catch Exception/RuntimeException
+             from user-supplied handlers — analogous to Spring's @ExceptionHandler),
+         CompareObjectsWithEquals (intentional identity checks: re-entrant ScopedValue detection
+             via == ctx, COW snapshot optimisation in HandlerRegistry, cache-key identity in
+             StrategyCache, and self-suppressed exception guard in ThrowableUtils),
+         CloseResource (DefaultCommandHandlerExecutor instances are long-lived bus workers closed
+             via FlowRuntime.close() → DefaultCommandBus.close(); PMD cannot see the lifecycle),
+         AvoidAccessibilityAlteration (MethodHandleHandlerInvoker calls setAccessible() to
+             unreflect handler methods — required for MethodHandle-based dispatch in the
+             reflection layer, no library alternative available at this abstraction level) -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="AvoidCatchingThrowable"/>
+        <exclude name="NullAssignment"/>
+        <exclude name="AvoidInstanceofChecksInCatchClause"/>
+        <exclude name="AssignmentInOperand"/>
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="AvoidDuplicateLiterals"/>
+        <exclude name="ImplicitSwitchFallThrough"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="CompareObjectsWithEquals"/>
+        <exclude name="CloseResource"/>
+        <exclude name="AvoidAccessibilityAlteration"/>
+        <exclude name="EmptyCatchBlock"/>
+        <exclude name="TestClassWithoutTestCases"/>
+    </rule>
+
+    <!-- Re-include EmptyCatchBlock with allowCommentedBlocks so catch(_) { /* reason */ } passes. -->
+    <rule ref="category/java/errorprone.xml/EmptyCatchBlock">
+        <properties>
+            <property name="allowCommentedBlocks" value="true"/>
+        </properties>
+    </rule>
+
+    <!-- Multithreading — exclude DoNotUseThreads (framework creates virtual/daemon threads),
+         AvoidUsingVolatile (primitive volatile fields are correct here), AvoidSynchronizedStatement
+         (intentional writeLock pattern in HandlerRegistry), UseConcurrentHashMap (many maps
+         are single-threaded or protected by external locking) -->
+    <rule ref="category/java/multithreading.xml">
+        <exclude name="DoNotUseThreads"/>
+        <exclude name="AvoidUsingVolatile"/>
+        <exclude name="AvoidSynchronizedStatement"/>
+        <exclude name="AvoidSynchronizedAtMethodLevel"/>
+        <exclude name="UseConcurrentHashMap"/>
+    </rule>
+
+    <!-- Performance — exclude AvoidInstantiatingObjectsInLoops (necessary for event processing
+         loops), TooFewBranchesForSwitch (switch used for clarity/extensibility) -->
+    <rule ref="category/java/performance.xml">
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+        <exclude name="TooFewBranchesForSwitch"/>
+    </rule>
+</ruleset>
