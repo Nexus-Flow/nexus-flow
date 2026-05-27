@@ -1,83 +1,171 @@
 # Nexus Flow
 
-**A lightweight Java library for Domain-Driven Design (DDD), CQRS, and Event-Driven Architecture (EDA).**
+**A Java 25 runtime for building event-driven services at scale — CQRS, DDD, Event Sourcing, transactional outbox, sagas, and distributed fan-out from a single dependency.**
 
-Nexus Flow gives you a clean, testable, and production-ready programming model for commands, queries, and domain events — backed by virtual threads, structured concurrency, event sourcing, a transactional outbox, and saga support.
+---
+
+## Why Nexus Flow
+
+Most CQRS/ES frameworks ask you to wire a command bus, an event bus, an outbox table, a saga engine, and a distributed topic — independently, with different lifecycle contracts, different serialization rules, and different error models. You end up with glue code that is harder to test than the business logic it carries.
+
+Nexus Flow ships **all of it as one coherent runtime.** One `FlowRuntime` instance owns the lifecycle. Commands, queries, events, outbox, inbox deduplication, sagas, and the distributed ring transport share the same execution context, cancellation token, error policy, and observability pipeline. When a handler records a domain event, the outbox, the saga engine, and the event fan-out are all already wired. There is nothing to glue.
+
+It is designed to sustain **millions of in-process dispatches per second per JVM** — the hot path is lock-free, `ClassValue`-cached, and `MethodHandle`-invoked. Adding it to a greenfield service or layering it over a Spring/Quarkus application is intentionally low-friction.
+
+---
+
+## At a glance
+
+```
+Commands → FlowRuntime → Aggregate → Events ──► EventBus ──► Listeners
+                │                                    │
+                ▼                                    ▼
+         HandlerRegistry              OutboxWorker polls storage
+         (ClassValue plan)         and re-publishes with dedup
+                │
+                ▼
+        SagaRunner checkpoints
+        and drives compensation
+                │
+                ▼
+         Ring transport (optional)
+         fans out to peer pods via
+         mTLS socket channels
+```
 
 ---
 
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [Core Concepts](#core-concepts)
+2. [Architecture](#architecture)
+3. [Core Concepts](#core-concepts)
    - [FlowRuntime](#flowruntime)
-   - [Commands and Command Handlers](#commands-and-command-handlers)
-   - [Queries and Query Handlers](#queries-and-query-handlers)
+   - [Commands](#commands)
+   - [Queries](#queries)
    - [Aggregates and Domain Events](#aggregates-and-domain-events)
    - [Event Listeners](#event-listeners)
-3. [Advanced Features](#advanced-features)
+4. [Advanced Features](#advanced-features)
    - [DispatchResult and ErrorPolicy](#dispatchresult-and-errorpolicy)
    - [ExecutionContext, Deadlines and Cancellation](#executioncontext-deadlines-and-cancellation)
-   - [Event Ordering and Idempotency](#event-ordering-and-idempotency)
+   - [Transactional Outbox and At-Least-Once Delivery](#transactional-outbox-and-at-least-once-delivery)
+   - [Inbox Deduplication](#inbox-deduplication)
    - [Event Sourcing](#event-sourcing)
-   - [Transactional Outbox and Inbox Deduplication](#transactional-outbox-and-inbox-deduplication)
    - [Sagas and Process Managers](#sagas-and-process-managers)
    - [Observability](#observability)
-4. [Domain Example: Order Management](#domain-example-order-management)
-5. [Capabilities Delivered](#capabilities-delivered)
-6. [Contributing](#contributing)
+5. [Distributed Ring Transport](#distributed-ring-transport)
+6. [Demos](#demos)
+7. [Performance](#performance)
+8. [Adapter Modules (Roadmap)](#adapter-modules-roadmap)
+9. [Build and Quality Gates](#build-and-quality-gates)
+10. [Contributing](#contributing)
 
 ---
 
 ## Quick Start
 
-```java
-InMemoryOrderRepository orders = new InMemoryOrderRepository();
+**Maven / Gradle coordinate** — publish to local Maven first:
 
-try (FlowRuntime runtime =
-        FlowRuntime.builder().interceptor(new LoggingDispatchInterceptor()).build()) {
+```bash
+./gradlew publishToMavenLocal
+```
 
-        // Register handlers
-        runtime.events().register(new OrderAuditListener());
-        runtime.events().register(new OrderCancellationAuditListener());
-        runtime.commands().register(new PlaceOrderCommandHandler(orders));
-        runtime.commands().register(new CancelOrderCommandHandler(orders));
-        runtime.queries().register(new GetOrderQueryHandler(orders));
-
-        // Dispatch a command (fire-and-forget)
-        runtime.commands()
-      .dispatch(
-        Command.<PlaceOrderCommand>builder()
-              .body(new PlaceOrderCommand("order-001", "prod-42", 3))
-        .build());
-
-// Typed-result command with full DispatchResult
-DispatchResult<?> result =
-        runtime.commands()
-                .dispatchAndReturnResult(
-                        Command.<CancelOrderCommand>builder()
-                                .body(new CancelOrderCommand("order-001", "Customer request"))
-                                .build(),
-                        ExecutionContext.root(),
-                        ErrorPolicy.failFast());
-
-  switch (result) {
-        case DispatchResult.Success<?> success -> System.out.println("Done: " + success.value());
-        case DispatchResult.Failure<?> failure ->
-        System.err.println("Error: " + failure.cause().getMessage());
-        case DispatchResult.PartialFailure<?> partialFailure ->
-        System.err.println("Partial: " + partialFailure.failures().size() + " errors");
-        case DispatchResult.Accepted<?> accepted ->
-        System.out.println("Accepted: " + accepted.messageId());
-        }
-
-// Query
-String summary =
-        runtime.queries()
-                .ask(Query.<GetOrderQuery>builder().body(new GetOrderQuery("order-001")).build());
-  System.out.println(summary);
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("net.nexus_flow:nexusflow-core:0.1.0-SNAPSHOT")
 }
 ```
+
+**Minimal runtime — command + query + event listener in ~20 lines:**
+
+```java
+try (FlowRuntime runtime = FlowRuntime.builder()
+        .interceptor(new LoggingDispatchInterceptor())
+        .handlers(
+            new PlaceOrderCommandHandler(orders),
+            new GetOrderQueryHandler(orders),
+            new OrderAuditListener())
+        .build()) {
+
+    // Fire-and-forget command
+    runtime.commands().dispatch(
+        Command.<PlaceOrderCommand>builder()
+               .body(new PlaceOrderCommand("order-001", "prod-42", 3))
+               .build());
+
+    // Typed-result command
+    DispatchResult<CancellationReceipt> result = runtime.commands().dispatchAndReturnResult(
+        Command.<CancelOrderCommand>builder()
+               .body(new CancelOrderCommand("order-001", "Customer request"))
+               .build(),
+        ExecutionContext.root(),
+        ErrorPolicy.failFast());
+
+    switch (result) {
+        case DispatchResult.Success<CancellationReceipt> s -> System.out.println(s.value());
+        case DispatchResult.Failure<?>                  f -> System.err.println(f.cause());
+        case DispatchResult.Accepted<?>                 a -> System.out.println("queued: " + a.messageId());
+        case DispatchResult.PartialFailure<?>           p -> p.failures().forEach(System.err::println);
+    }
+
+    // Query
+    String summary = runtime.queries().ask(
+        Query.<GetOrderQuery>builder()
+             .body(new GetOrderQuery("order-001"))
+             .build());
+}
+// FlowRuntime.close() shuts down workers and drains the outbox cleanly.
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  FlowRuntime  (one per bounded context)                                  │
+│                                                                          │
+│  ┌──────────┐  ┌──────────┐  ┌────────────────────────────────────┐     │
+│  │ Command  │  │  Query   │  │          Event Bus                 │     │
+│  │   Bus    │  │   Bus    │  │  fan-out  ·  idempotency  ·  order │     │
+│  └────┬─────┘  └────┬─────┘  └──────────────┬─────────────────────┘     │
+│       │             │                        │                           │
+│  ┌────▼─────────────▼────────────────────────▼─────────────────────┐    │
+│  │  HandlerRegistry   (ClassValue-cached DispatchPlan)              │    │
+│  │  DispatchInterceptor chain  ·  MethodHandle invokers             │    │
+│  │  ExecutionContext propagation  ·  VirtualThread executor         │    │
+│  └──────────────────────────┬───────────────────────────────────────┘    │
+│                             │                                            │
+│  ┌──────────────────────────▼───────────────────────────────────────┐    │
+│  │  Aggregate runtime                                               │    │
+│  │  EventStore  ·  AggregateRepository  ·  Snapshots               │    │
+│  │  OutboxAppender  ·  InboxStorage  ·  OutboxWorker               │    │
+│  │  SagaRunner  ·  ScheduledCommandWorker                          │    │
+│  └──────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐     │
+│  │  RingRuntime  (optional, attach via .attachTo(flowRuntime))     │     │
+│  │  mTLS peer-to-peer sockets  ·  consistent-hash routing          │     │
+│  │  live fan-out (RingEventBusBridge)                              │     │
+│  │  durable fan-out (RingOutboxBridge)  ·  RingOps health facade   │     │
+│  └─────────────────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Layer rules (strictly enforced):**
+
+| Layer | Package | What lives here |
+|---|---|---|
+| Domain | `core.ddd` | `Aggregate`, `AggregateRoot`, `DomainEvent`, `AbstractDomainEvent` |
+| CQRS contracts | `core.cqrs.*` | Buses, handlers, listeners, annotations, introspection |
+| Runtime | `core.runtime.*` | `FlowRuntime`, `ExecutionContext`, `DispatchPlan`, `MethodHandle` invokers |
+| Event sourcing | `core.eventsourcing` | `EventStore`, `AggregateRepository`, snapshots, projections |
+| Messaging | `core.outbox`, `core.inbox` | `OutboxStorage`, `InboxStorage`, `OutboxWorker`, codec SPI |
+| Process managers | `core.saga` | `Saga<K>`, `SagaRunner`, `SagaState`, `SagaStorage` |
+| Scheduling | `core.scheduling` | `ScheduledCommandStorage`, `ScheduledCommandWorker` |
+| Observability | `core.observability` | `Observability`, `MetricsRecorder`, `TracingBridge`, JFR events |
+| Ring transport | `core.ring.*` | Peer sockets, frame protocol, membership, routing, bridges, ops |
 
 ---
 
@@ -85,96 +173,90 @@ String summary =
 
 ### FlowRuntime
 
-`FlowRuntime` is the single owner of all buses, executors, and lifecycle resources. Every application should create **one** `FlowRuntime` instance (or one per bounded context) and close it when the process shuts down.
+`FlowRuntime` is the **single lifecycle root**. It owns all buses, executors, workers, and observability sinks. There is no static state, no `getInstance()`, no shared process-globals. Two runtimes in the same JVM are fully isolated.
 
 ```java
 FlowRuntime runtime = FlowRuntime.builder()
-    .interceptor(new LoggingDispatchInterceptor())   // log every dispatch
-    .parallelListeners(true)                         // opt-in parallel event fan-out
-    .shutdownTimeout(Duration.ofSeconds(10))         // graceful shutdown timeout
+    .interceptor(new LoggingDispatchInterceptor())
+    .parallelListeners(true)        // opt-in parallel event fan-out
+    .shutdownTimeout(Duration.ofSeconds(10))
+    .handlers(
+        new PlaceOrderCommandHandler(),
+        new CancelOrderCommandHandler(),
+        new GetOrderQueryHandler(),
+        new OrderAuditListener())   // all types registered in one call
     .build();
 ```
 
+`FlowRuntime.builder().handlers(Object...)` accepts any mix of `NoReturnCommandHandler`, `ReturnCommandHandler`, `DomainEventListener`, or `AbstractQueryHandler` and routes each to the correct bus. This covers the common case; individual buses remain accessible for more granular control.
+
+`FlowRuntime#close()` is idempotent and drains the outbox (if `drainOnShutdown(true)`). `FlowRuntime#shutdown(Duration)` is the Kubernetes pre-stop hook override.
+
 ---
 
-### Commands and Command Handlers
+### Commands
 
-A **command** represents an intention to change state. It carries its payload as a Java `record`.
+Commands represent intent to change state. They carry their payload as a Java record.
 
 ```java
-// Command body — plain Java record
 public record PlaceOrderCommand(String orderId, String productId, int quantity) {}
 
-// No-return handler
-public class PlaceOrderCommandHandler extends AbstractNoReturnCommandHandler<PlaceOrderCommand> {
+// No return value
+public class PlaceOrderCommandHandler
+        extends AbstractNoReturnCommandHandler<PlaceOrderCommand> {
 
     @Override
     protected void handle(PlaceOrderCommand cmd) {
-        OrderAggregate order = OrderAggregate.place(cmd.orderId(), cmd.productId(), cmd.quantity());
-        // repository.save(order);
+        var order = OrderAggregate.place(cmd.orderId(), cmd.productId(), cmd.quantity());
+        repository.save(order);
     }
 }
-
-// Return-value handler
-public class ReserveStockHandler extends AbstractReturnCommandHandler<ReserveStockCommand, ReservationId> {
-
-    @Override
-    protected ReservationId handle(ReserveStockCommand cmd) {
-        // perform reservation …
-        return new ReservationId(UUID.randomUUID());
-    }
-}
-```
-
-**Registration and dispatch:**
-
-```java
-runtime.commands().register(new PlaceOrderCommandHandler());
-
-// Fire-and-forget
-runtime.commands().dispatch(
-    Command.<PlaceOrderCommand>builder()
-        .body(new PlaceOrderCommand("order-001", "prod-42", 3))
-        .priority(10)
-        .build());
 
 // With typed return
-ReservationId id = runtime.commands().dispatchAndReturn(
-    Command.<ReserveStockCommand>builder().body(new ReserveStockCommand("prod-42", 3)).build());
+public class CancelOrderCommandHandler
+        extends AbstractReturnCommandHandler<CancelOrderCommand, CancellationReceipt> {
+
+    @Override
+    protected CancellationReceipt handle(CancelOrderCommand cmd) {
+        OrderAggregate order = repository.load(cmd.orderId());
+        order.cancel(cmd.reason());
+        repository.save(order);
+        return new CancellationReceipt(cmd.orderId(), "CANCELLED", cmd.reason());
+    }
+}
 ```
 
-**Handler policy overrides** (optional; configure per handler):
+**Per-handler policy overrides** (all optional):
 
 ```java
-public class PlaceOrderCommandHandler extends AbstractNoReturnCommandHandler<PlaceOrderCommand> {
+public class PlaceOrderCommandHandler
+        extends AbstractNoReturnCommandHandler<PlaceOrderCommand> {
 
-    @Override public int  getConcurrencyLevel()     { return 4; }          // max parallel executions
-    @Override public boolean isSagaEnabled()        { return false; }      // inline execution
-    @Override public InitializationType getInitializationType() { return InitializationType.EAGER; }
+    @Override public int  getConcurrencyLevel()   { return 8; }
+    @Override public long getMaxQueueSize()        { return 512; }
+    @Override public SaturationPolicy getSaturationPolicy() {
+        return SaturationPolicy.BLOCK_CALLER;
+    }
 }
 ```
 
 ---
 
-### Queries and Query Handlers
+### Queries
 
-A **query** is a read-only request. It never changes state.
+Queries are read-only. They never mutate state and are dispatched on a separate bus.
 
 ```java
 public record GetOrderQuery(String orderId) {}
 
-public class GetOrderQueryHandler extends AbstractQueryHandler<GetOrderQuery, String> {
+public class GetOrderQueryHandler
+        extends AbstractQueryHandler<GetOrderQuery, String> {
 
     @Override
     public String handle(GetOrderQuery query) {
-        // hit a read model or projection
         return readModel.findSummaryById(query.orderId());
     }
 }
-```
-
-```java
-runtime.queries().register(new GetOrderQueryHandler());
 
 String summary = runtime.queries().ask(
     Query.<GetOrderQuery>builder().body(new GetOrderQuery("order-001")).build());
@@ -184,7 +266,7 @@ String summary = runtime.queries().ask(
 
 ### Aggregates and Domain Events
 
-Aggregates own their state and enforce business invariants. They record **domain events** — facts about what happened — rather than mutating external state directly.
+Aggregates own their invariants. They produce domain events — facts about what happened — instead of reaching into external state directly. The runtime drains the aggregate's uncommitted events after every handler invocation and routes them to every registered listener.
 
 ```java
 public class OrderAggregate extends Aggregate {
@@ -202,10 +284,9 @@ public class OrderAggregate extends Aggregate {
         if (!"PLACED".equals(status))
             throw new IllegalStateException("Cannot cancel a " + status + " order");
         status = "CANCELLED";
-        recordEvent(new OrderCancelledEvent(getOrderId(), reason));
+        recordEvent(new OrderCancelledEvent(getAggregateId(), reason));
     }
 
-    // Required for event-sourcing replay
     @Override
     protected void apply(DomainEvent event) {
         switch (event) {
@@ -215,16 +296,13 @@ public class OrderAggregate extends Aggregate {
         }
     }
 }
-```
 
-```java
 public class OrderPlacedEvent extends AbstractDomainEvent {
-
     private final String productId;
-    private final int quantity;
+    private final int    quantity;
 
     public OrderPlacedEvent(String orderId, String productId, int quantity) {
-        super(orderId);          // aggregateId
+        super(orderId);
         this.productId = productId;
         this.quantity  = quantity;
     }
@@ -234,33 +312,31 @@ public class OrderPlacedEvent extends AbstractDomainEvent {
 }
 ```
 
-After the handler returns, the runtime drains the aggregate's uncommitted events and dispatches them to every registered listener through the `EventBus`.
+Every `AbstractDomainEvent` carries:
+- a monotonically increasing **sequence number** per aggregate instance (starts at 0)
+- a default `idempotencyKey()` of `aggregateId + ":" + sequenceNumber`
+- `UUID getId()`, `Instant getTimestamp()`, `String getAggregateId()`, `String eventType()`
 
 ---
 
 ### Event Listeners
 
-Event listeners react to domain events. Register one listener per event type; use the `order()` method to control fan-out sequencing.
-
 ```java
-public class OrderAuditListener extends AbstractDomainEventListener<OrderPlacedEvent> {
+public class OrderAuditListener
+        extends AbstractDomainEventListener<OrderPlacedEvent> {
 
     @Override
     public void handle(OrderPlacedEvent event) {
-        // write to audit log, update read model, send confirmation email, etc.
-        System.out.printf("[AUDIT] Order %s placed — product %s x%d%n",
-            event.getOrderId(), event.getProductId(), event.getQuantity());
+        auditLog.record(event.getAggregateId(), event.getProductId(), event.getQuantity());
     }
 
-    @Override
-    public int order() { return 1; }  // lower = runs first
+    @Override public int order() { return 1; }  // lower = runs first
 }
 ```
 
-**Fan-out ordering rules:**
-
-- Listeners with the same `order()` value run in registration order by default.
-- Opt-in parallel fan-out: override `parallelSafe()` → `true` and enable `FlowRuntime.builder().parallelListeners(true)`.
+**Fan-out rules:**
+- Sequential by default; listeners fire in ascending `order()` value, ties broken by registration order.
+- Opt-in parallel: override `parallelSafe() → true` on **every** listener for a concrete event class, and set `FlowRuntime.builder().parallelListeners(true)`. Both preconditions must hold.
 
 ---
 
@@ -268,119 +344,126 @@ public class OrderAuditListener extends AbstractDomainEventListener<OrderPlacedE
 
 ### DispatchResult and ErrorPolicy
 
-Every typed-result dispatch returns a sealed `DispatchResult<T>`. Use `ErrorPolicy` to control how failures are accumulated.
+Every typed dispatch returns a sealed `DispatchResult<T>`. Handle it exhaustively with pattern matching:
 
 ```java
-DispatchResult<Void> result = runtime.commands().dispatchAndReturnResult(
-    cmd,
-    ExecutionContext.root(),
-    ErrorPolicy.collectFailures());   // continue on first failure, aggregate all
+DispatchResult<CancellationReceipt> result = runtime.commands().dispatchAndReturnResult(
+    cmd, ExecutionContext.root(), ErrorPolicy.collectFailures());
 
 switch (result) {
-     case DispatchResult.Success<Void>        s -> { /* happy path */ }
-     case DispatchResult.Failure<Void>        f -> log.error("Failed", f.cause());
-     case DispatchResult.PartialFailure<Void> p -> p.failures().forEach(e -> log.warn("Partial", e));
-     case DispatchResult.Accepted<Void>       a -> { /* queued for durable processing */ }
+    case DispatchResult.Success<CancellationReceipt> s ->
+        System.out.println("Done: " + s.value());
+    case DispatchResult.Failure<?>        f ->
+        System.err.println("Failed: " + f.cause().getMessage());
+    case DispatchResult.PartialFailure<?> p ->
+        p.failures().forEach(e -> System.err.println("Partial: " + e.getMessage()));
+    case DispatchResult.Accepted<?>       a ->
+        System.out.println("Durably queued, message=" + a.messageId());
 }
 ```
 
-Available policies:
-
-| Policy | Behaviour |
+| `ErrorPolicy` | Behaviour |
 |---|---|
-| `ErrorPolicy.failFast()` | Abort on the first failure; cancel sibling work. |
-| `ErrorPolicy.collectFailures()` | Continue; aggregate all failures into `PartialFailure`. |
-| `ErrorPolicy.ignoreFailures(predicate)` | Selectively ignore matching exceptions. |
-| `ErrorPolicy.isolate(inner)` | Failures in event listeners do not propagate to the parent command. |
+| `failFast()` | Abort on the first failure; cancel sibling work. |
+| `collectFailures()` | Continue all handlers; aggregate all failures into `PartialFailure`. |
+| `ignoreFailures(predicate)` | Selectively suppress matching exceptions. |
+| `isolate(inner)` | Failures in event listeners do not propagate to the calling command. |
 
 ---
 
 ### ExecutionContext, Deadlines and Cancellation
 
-`ExecutionContext` carries trace / correlation IDs, deadlines, and cancellation tokens through the entire call chain.
+`ExecutionContext` is an immutable record that carries trace and correlation IDs, deadlines, and a cooperative `CancellationToken` through the entire call chain. Every child command and event inherits from the parent; deadlines never extend.
 
 ```java
 ExecutionContext ctx = ExecutionContext.root()
     .withDeadline(Instant.now().plus(Duration.ofSeconds(5)))
     .withCorrelationId(correlationId);
 
-DispatchResult<?> result = runtime.commands().dispatchAndReturnResult(cmd, ctx, ErrorPolicy.failFast());
+DispatchResult<?> result = runtime.commands()
+    .dispatchAndReturnResult(cmd, ctx, ErrorPolicy.failFast());
 ```
 
-Child commands and events dispatched during handler execution automatically receive child contexts derived from the parent, preserving the full trace hierarchy.
+Framework workers (`OutboxWorker`, `ScheduledCommandWorker`, `SagaRunner`) own their own `CancellationToken` for their lifetime. The token is cancelled during `shutdown()`, before `thread.interrupt()`, so in-flight work receives cooperative cancellation signals rather than abrupt interruption.
 
 ---
 
-### Event Ordering and Idempotency
+### Transactional Outbox and At-Least-Once Delivery
 
-Every domain event records a monotonically increasing **sequence number** per aggregate instance (starting at 0). The default `idempotencyKey` is `aggregateId + ":" + sequenceNumber`, which is stable across replays and process restarts.
+The **transactional outbox** is the correct pattern for publishing events durably without a distributed transaction. Nexus Flow ships a production-ready `OutboxWorker` with configurable retry backoff, dead-letter routing, and a visibility-timeout sweep for stuck `IN_FLIGHT` rows.
 
 ```java
-event.getSequenceNumber();   // 0, 1, 2 … per aggregate instance
-event.idempotencyKey();      // e.g. "order-001:0"
+OutboxConfig config = OutboxConfig.builder(
+        new InMemoryOutboxStorage(),          // swap for JdbcOutboxStorage in production
+        new JavaSerializationOutboxPayloadCodec())
+    .workerPollInterval(Duration.ofMillis(50))
+    .workerMaxAttempts(5)
+    .workerBackoffBase(Duration.ofMillis(20))
+    .workerBackoffMax(Duration.ofSeconds(30))
+    .staleClaimVisibilityTimeout(Duration.ofMinutes(5))
+    .drainOnShutdown(true)
+    .deadLetterHandler((row, cause) ->
+        deadLetterLog.record(row.outboxId(), row.payloadType(), cause))
+    .build();
+
+FlowRuntime runtime = FlowRuntime.builder()
+    .outbox(config)
+    .handlers(/* ... */)
+    .build();
 ```
 
-Override `idempotencyKey()` on external/integration events to return the upstream message ID verbatim.
+**Status lifecycle:**
+
+```
+PENDING → IN_FLIGHT → PUBLISHED
+                    → FAILED         (retryable, exponential backoff + jitter)
+                    → FAILED_TERMINAL (maxAttempts exhausted → DeadLetterHandler)
+```
+
+The worker never moves a row backward in the state machine. Decode failures and encode failures on the bridge path are classified as transient (retried), not terminal — preserving at-least-once semantics.
+
+---
+
+### Inbox Deduplication
+
+Pair the outbox with an `InboxStorage` to guarantee exactly-once-effective delivery at the listener side:
+
+```java
+OutboxConfig config = OutboxConfig.builder(outboxStorage, codec)
+    .inbox(new InMemoryInboxStorage())   // deduplicates by (messageId, consumerId)
+    .build();
+```
+
+The inbox claims each message by `(messageId, consumerId)` before the worker dispatches. If the claim fails (already processed), the row is marked published and skipped without invoking any listener.
 
 ---
 
 ### Event Sourcing
 
-Wire an `AggregateRepository` to persist and replay aggregates from an `EventStore`:
-
 ```java
-EventStore        store      = new InMemoryEventStore();
-SnapshotStore     snapshots  = new InMemorySnapshotStore();
+EventStore    store     = new InMemoryEventStore();
+SnapshotStore snapshots = new InMemorySnapshotStore();
 
 AggregateRepository<OrderAggregate> repo = AggregateRepository
     .builder(store, OrderAggregate.class, OrderAggregate::new)
     .snapshotStore(snapshots)
-    .snapshotEvery(50)           // auto-snapshot every 50 events
+    .snapshotEvery(50)    // auto-snapshot after every 50 events
     .build();
 
-// Save
-OrderAggregate order = OrderAggregate.place("order-001", "prod-42", 3);
-repo.save(order);                // appends events; throws OptimisticConcurrencyException on conflict
+// Save — appends events; throws OptimisticConcurrencyException on version conflict
+repo.save(order);
 
-// Load — replays events from the store (or hydrates from the latest snapshot)
-OrderAggregate loaded = repo.load(UUID.fromString("order-001"));
+// Load — hydrates from the latest snapshot + tail events
+OrderAggregate loaded = repo.load(orderId);
 ```
 
----
-
-### Transactional Outbox and Inbox Deduplication
-
-For durable, at-least-once event delivery across process boundaries, wire an `OutboxStorage` and configure `ExecutionMode.AsynchronousDurable`:
-
-```java
-OutboxStorage  outbox = new InMemoryOutboxStorage();
-InboxStorage   inbox  = new InMemoryInboxStorage();
-
-FlowRuntime runtime = FlowRuntime.builder()
-    .outbox(OutboxConfig.builder()
-        .storage(outbox)
-        .inbox(inbox)
-        .drainOnShutdown(true)
-        .build())
-    .build();
-
-// The OutboxWorker polls the outbox, delivers events through the EventBus,
-// and deduplicates delivery using the inbox (messageId, consumerId) key.
-```
-
-The `OutboxRecord` status lifecycle:
-
-```text
-PENDING → IN_FLIGHT → PUBLISHED
-                    → FAILED (retryable, exponential backoff with jitter)
-                    → FAILED_TERMINAL (manual replay required)
-```
+Projections subscribe to the global event stream position log for catch-up and live updates. `StreamId` is a typed, versioned cursor; `AppendResult` carries the accepted version for optimistic-lock validation.
 
 ---
 
 ### Sagas and Process Managers
 
-Long-running, multi-step business processes are modelled as `Saga<K>` implementations:
+Long-running multi-step processes are `Saga<K>` implementations. The `SagaRunner` drives catch-up from the event store, persists checkpoint state under optimistic concurrency, and routes compensation commands through the outbox.
 
 ```java
 public class OrderFulfillmentSaga implements Saga<String> {
@@ -388,115 +471,234 @@ public class OrderFulfillmentSaga implements Saga<String> {
     @Override
     public String correlate(DomainEvent event) {
         return switch (event) {
-            case OrderPlacedEvent    e -> e.getOrderId();
-            case PaymentConfirmedEvent e -> e.getOrderId();
-            default -> null;   // not correlated
+            case OrderPlacedEvent     e -> e.getAggregateId();
+            case PaymentConfirmedEvent e -> e.getAggregateId();
+            default -> null;
         };
     }
 
     @Override
     public SagaTransition handle(SagaState<String> state, DomainEvent event) {
         return switch (event) {
-            case OrderPlacedEvent    e -> SagaTransition.advance(new ConfirmPaymentCommand(e.getOrderId()));
-            case PaymentConfirmedEvent e -> SagaTransition.complete();
+            case OrderPlacedEvent     e ->
+                SagaTransition.advance(new ConfirmPaymentCommand(e.getAggregateId()));
+            case PaymentConfirmedEvent e ->
+                SagaTransition.complete();
             default -> SagaTransition.skip();
         };
     }
 
     @Override
     public SagaTransition compensate(SagaState<String> state, Throwable cause) {
-        return SagaTransition.compensate(new RefundPaymentCommand(state.correlationKey()));
+        return SagaTransition.compensate(
+            new RefundPaymentCommand(state.correlationKey()));
     }
 }
 ```
 
-`SagaRunner` subscribes to the `EventStore`'s global position log, drives catch-up, persists state under optimistic concurrency, and routes compensation events through the outbox.
+The advanced demo (`project/demo`) runs a full two-scenario saga: happy path (stock reserved → payment charged) and compensation path (stock fails → order cancelled via `CompensationService`).
 
 ---
 
 ### Observability
 
-**JFR (Java Flight Recorder):** Three built-in events are emitted automatically for every dispatch:
+**JFR — zero-overhead production tracing:**
 
-| JFR Event | Fields |
+Three built-in JFR events fire on every dispatch (zero-cost when no recording is active):
+
+| JFR Event | Key fields |
 |---|---|
 | `net.nexusflow.CommandDispatch` | `commandType`, `outcome`, `failureClass` |
 | `net.nexusflow.EventPublish` | `eventType`, `listenerCount`, `parallelFanOut`, `outcome` |
 | `net.nexusflow.HandlerInvoke` | `targetType`, `handlerType`, `success`, `failureClass` |
 
-Enable a JFR recording and filter on category `NexusFlow/CQRS`.
+Filter on JFR category `NexusFlow/CQRS` in Mission Control or `jfr print`.
 
-**Dispatch interceptors:** Chain custom interceptors for logging, tracing, or metrics:
+**Dispatch interceptors — custom logging, tracing, or metrics:**
 
 ```java
 FlowRuntime.builder()
     .interceptor(new LoggingDispatchInterceptor())
-    .interceptor(myTracingInterceptor)
+    .interceptor(openTelemetryInterceptor)
+    .build();
+```
+
+Each interceptor receives an `InvocationContext` with the `ExecutionContext`, the message type, and the `InvocationStage` (before/after invocation). The chain is ordered by registration; interceptors compose without framework involvement.
+
+**SPI seats** — `MetricsRecorder` and `TracingBridge` are pluggable interfaces. Micrometer and OpenTelemetry adapter modules are planned (see roadmap below) and will implement these interfaces without changing `core`.
+
+---
+
+## Distributed Ring Transport
+
+For multi-pod event fan-out without an external broker, Nexus Flow ships a **ring transport** layer: a peer-to-peer overlay of persistent mTLS socket channels over which domain events and commands route via consistent hashing.
+
+```
+Pod A ──────────── mTLS ──────────► Pod B
+  │                                    │
+  └──────── RingRuntime ───────────────┘
+       membership  · heartbeat
+       frame codec · dispatch routing
+       event fan-out bridges
+```
+
+**Wiring:**
+
+```java
+RingRuntime ring = RingRuntime.builder()
+    .localPeer(PeerId.of("pod-a"), new PeerAddress("0.0.0.0", 7700))
+    .membership(new StaticPeerListMembership(List.of(
+        new PeerInfo(PeerId.of("pod-b"), new PeerAddress("pod-b.svc", 7700)))))
+    .tls(CertificateSource.ofStaticConfig(tlsConfig))
+    .attachTo(flowRuntime)
+    .enableLiveFanOut(new JavaSerializationEventPayloadCodec(), "v1")
+    .build();
+
+ring.start();
+```
+
+**Live fan-out** — `RingEventBusBridge` intercepts every `EventBus.dispatch` call and serializes the event to every alive remote peer via the ring connection. Delivery is fire-and-forget with backpressure; peers without a live connection are marked failed and retried on reconnect.
+
+**Durable fan-out** — `RingOutboxBridge` reads outbox rows (owned by the ring via `OutboxOwnership.RING_OWNED`) and fans them out to remote pods. The `RING_BRIDGE_WITH_WORKER_FAILOVER` ownership mode implements a formal **pause/resume handshake**: the bridge pauses the `OutboxWorker` at `start()` and resumes it at `close()`, so there is never a window where both the worker and the bridge compete to claim the same rows.
+
+**Operations facade:**
+
+```java
+RingOps ops = ring.ops();
+
+RingHealthStatus health = ops.health();
+// → { localPeer, membershipSize, connectedPeers, acceptorLive, pendingDispatches }
+
+ops.quiesce(Duration.ofSeconds(10));  // blocks until in-flight drops to zero
+ops.drainOutbox();                    // returns count of rows fanned out in this sweep
+```
+
+**Hot-rotating mTLS certificates** — `CertificateSource` is an SPI for cert-manager, Vault, and SPIFFE/SPIRE adapters:
+
+```java
+CertificateSource source = certManagerAdapter.watch("/var/run/secrets/tls");
+source.subscribe(newConfig -> ring.rotateTls(newConfig));
+
+RingRuntime ring = RingRuntime.builder()
+    .tls(source)
+    // ...
     .build();
 ```
 
 ---
 
-## Domain Example: Order Management
+## Demos
 
-The `project/demo` module contains a runnable end-to-end example of the Order Management domain:
-
-| File | Role |
-|---|---|
-| `PlaceOrderCommand` | Command body record |
-| `CancelOrderCommand` | Command body record |
-| `GetOrderQuery` | Query body record |
-| `OrderAggregate` | Aggregate — state machine with `place()` and `cancel()` |
-| `OrderPlacedEvent` | Domain event emitted by `OrderAggregate.place()` |
-| `OrderCancelledEvent` | Domain event emitted by `OrderAggregate.cancel()` |
-| `InMemoryOrderRepository` | Demo-only in-memory persistence seam shared by handlers and queries |
-| `CancellationReceipt` | Typed result returned by `CancelOrderCommandHandler` |
-| `PlaceOrderCommandHandler` | No-return handler for `PlaceOrderCommand` |
-| `CancelOrderCommandHandler` | Return-value handler for `CancelOrderCommand` |
-| `GetOrderQueryHandler` | Query handler returning an order summary from the demo repository |
-| `OrderAuditListener` | Event listener writing placed-order audit log entries |
-| `OrderCancellationAuditListener` | Event listener writing cancelled-order audit log entries |
-| `NexusFlowDemo` | `main()` — bootstraps the runtime and exercises all paths |
-
-Run the demo:
+### Basic demo — command / query / event in one process
 
 ```bash
 ./gradlew :project:demo:runDemo
 ```
 
-Expected output includes:
+Exercises `PlaceOrderCommand`, `CancelOrderCommand`, `GetOrderQuery`, and two event listeners through a standard `FlowRuntime`. Shows the `DispatchResult` ADT and typed return values.
 
-```text
-Cancel succeeded: CancellationReceipt[orderId=order-001, status=CANCELLED, reason=Customer request]
-Order summary: Order[id=order-001, status=CANCELLED, product=prod-42, qty=3]
+### Advanced demo — outbox + saga + dead-letter + audit trail
+
+```bash
+./gradlew :project:demo:runAdvancedDemo
+```
+
+Runs two end-to-end scenarios through the full durable-async stack:
+
+| Scenario | Flow |
+|---|---|
+| **Happy path** (qty=3) | `PlaceOrderCommand` → `OrderPlacedEvent` → outbox → `StockReservedEvent` → `PaymentChargedEvent` |
+| **Compensation** (qty=999) | `PlaceOrderCommand` → `OrderPlacedEvent` → outbox → `StockReservationFailedEvent` → `OrderCancelledEvent` |
+
+Dead-letter handler, audit-trail listener, and `OutboxWorker` with exponential backoff and `drainOnShutdown` are all live.
+
+---
+
+## Performance
+
+Baselines captured on **Windows / Temurin-25.0.2+10-LTS** with JMH defaults (3 warmup, 3 measurement, 1 fork, 1 s/iter):
+
+| Benchmark | Params | Score | Unit |
+|---|---|---:|---|
+| `DispatchPlanLookupBenchmark.classValueCachedLookup` | 1 type | **3.6** | ns/op |
+| `DispatchPlanLookupBenchmark.classValueCachedLookup` | 100 types | **3.6** | ns/op |
+| `EventFanOutBenchmark.dispatchResult_failFast` | 1 listener | **1.25** | µs/op |
+| `EventFanOutBenchmark.dispatchResult_failFast` | 10 listeners | **4.9** | µs/op |
+| `EventFanOutBenchmark.dispatchResult_failFast` | 100 listeners | **41.8** | µs/op |
+| `EventFanOutBenchmark.dispatch_legacyFireAndForget` | 1 listener | **11** | ns/op |
+| `TypeReferenceHashBenchmark.hashCode_cached` | — | **0.6** | ns/op |
+
+`ClassValue` dispatch-plan lookup is **O(1) across any number of registered types** — the benchmark shows identical latency at 1, 10, and 100 registered command types. Event fan-out scales linearly with listener count as expected for sequential delivery.
+
+Run benchmarks locally:
+
+```bash
+./gradlew :project:benchmarks:jmh
+# Detailed: 5 warmup + 10 measurement + 2 forks + GC pressure profiler
+./gradlew :project:benchmarks:jmh --args="-wi 5 -i 10 -f 2 -r 5s -prof gc"
 ```
 
 ---
 
-## Capabilities Delivered
+## Adapter Modules (Roadmap)
 
-| Area | What's in the box |
+These modules are design-reserved and will extend `core` without modifying it:
+
+| Module | What it provides |
 |---|---|
-| Smoke & lifecycle | Executor lifecycle fixes, `ScopedDomainEventContext` |
-| Core runtime | `FlowRuntime`, `DispatchResult`, `ErrorPolicy`, `ExecutionContext`, aggregate-owned events |
-| Dispatch & back-pressure | Pluggable execution strategies, virtual threads, deadlines, cancellation, back-pressure, outbox contract |
-| Handler registry | `HandlerRegistry` + `ClassValue`-cached `DispatchPlan`, `MethodHandle` invokers, benchmarks |
-| Event sourcing & sagas | `EventStore`, `AggregateRepository`, snapshots, projections, transactional outbox/inbox, sagas |
-| Observability & ops | JFR events, `System.Logger`, `ScheduledCommandWorker`, `snapshotEvery`, parallel fan-out, graceful shutdown |
+| `nexus-flow-jdbc` | `JdbcOutboxStorage`, `JdbcInboxStorage`, `JdbcSagaStorage`, `JdbcEventStore`; dialect strategies for Postgres (`FOR UPDATE SKIP LOCKED`), MySQL, H2, SQL Server; Flyway migrations; Testcontainers smoke tests |
+| `nexus-flow-otel` | `Observability` backed by the OpenTelemetry SDK (Tracer + Meter); OTLP exporter wiring left to the host process |
+| `nexus-flow-micrometer` | `MetricsRecorder` backed by Micrometer `MeterRegistry`; Spring Boot Actuator-compatible |
+| `nexus-flow-resilience4j` | `QueryCircuitBreaker` and `RetryPolicy` adapters |
+| `nexus-flow-kafka` | Kafka dead-letter queue, integration-event publisher, optional log-compacted `KafkaEventStore` |
+| `nexus-flow-rabbit` | RabbitMQ DLQ and integration-event publisher |
+| `nexus-flow-redis-lettuce` | Distributed `EventDeduplicator`, `TokenBucket` (Bucket4j-on-Lettuce), Redis-resident `SagaStorage` |
+| `nexus-flow-debezium` | CDC-driven `OutboxStorage` reader — turns the outbox into a Kafka source via Debezium's outbox event router SMT |
+| `nexus-flow-spring` | IoC integration via annotation scanning; `@CommandHandler` / `@EventListener` / `@QueryHandler` component detection |
+| `nexus-flow-quarkus` | Build-time index via Jandex; Arc bean integration |
+| `nexus-flow-micronaut` | AST-time processing; Micronaut DI integration |
+
+Any code added to `core` must be implementable by at least one of these modules without re-opening `core`.
+
+---
+
+## Build and Quality Gates
+
+```bash
+# Full build
+./gradlew build
+
+# Core test suite
+./gradlew :project:core:test
+
+# Specific test
+./gradlew :project:core:test --tests "net.nexus_flow.core.outbox.OutboxWorkerTest"
+
+# Auto-format
+./gradlew :project:core:spotlessApply
+
+# Static analysis
+./gradlew :project:core:pmdMain :project:core:pmdTest :project:core:spotbugsMain
+
+# Javadoc
+./gradlew :project:core:javadoc
+
+# Benchmarks
+./gradlew :project:benchmarks:jmh
+```
+
+Requires **JDK 25** with `--enable-preview`. The toolchain is configured in the root `build.gradle.kts`; no per-task overrides are needed.
 
 ---
 
 ## Contributing
 
-We welcome contributions! To get started:
+1. Fork the repository and create a feature or bugfix branch.
+2. Read `CLAUDE.md` — it describes the layering rules, coding idioms, and the full hyperscale design checklist.
+3. Run `./gradlew :project:core:spotlessApply` before committing; the CI check (`spotlessCheck`) will fail on unformatted files.
+4. Every non-trivial change ships with tests: unit, contract (cross-backend), and concurrency tests as applicable.
+5. Submit a pull request to `main`. Reference the relevant architectural invariant in the PR description.
 
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix.
-3. Make your changes and ensure `./gradlew :project:core:test` stays green.
-4. Submit a pull request to the `main` branch.
+See [CONTRIBUTING.adoc](CONTRIBUTING.adoc) for the full process, code of conduct, and security disclosure policy.
 
-See [CONTRIBUTING.adoc](CONTRIBUTING.adoc) for full guidelines.
-
-## Issues
-
-If you encounter a bug or have a feature suggestion, please [open an issue](https://github.com/Nexus-Flow/nexus-flow/issues).
+Issues and feature suggestions: [open an issue](https://github.com/Nexus-Flow/nexus-flow/issues).
