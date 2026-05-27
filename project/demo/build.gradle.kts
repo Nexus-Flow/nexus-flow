@@ -50,3 +50,18 @@ tasks.register<JavaExec>("runDemo") {
         "-DeventContextStrategy=scoped"
     )
 }
+
+tasks.register<JavaExec>("runAdvancedDemo") {
+    group = "application"
+    description = "Run the advanced Nexus Flow demo (outbox, saga, dead-letter, audit trail)."
+    mainClass.set("net.nexus_flow.advanced.NexusFlowAdvancedDemo")
+    classpath = sourceSets["main"].runtimeClasspath
+    jvmArgs(
+        "-Dfile.encoding=UTF-8",
+        "-Dsun.stdout.encoding=UTF-8",
+        "-Dsun.stderr.encoding=UTF-8",
+        "-Duser.language=en",
+        "-Duser.country=US",
+        "-DeventContextStrategy=scoped"
+    )
+}
